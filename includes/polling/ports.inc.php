@@ -124,30 +124,45 @@ if ($debug) { print_r($port_stats); }
 //       -- i can make it a function, so that you don't know what it's doing.
 //       -- $ports = adamasMagicFunction($ports_db); ?
 
+if ($device['os_group'] == "unix") {
+  $port_index_name='ifName';
+}
+else {
+  $port_index_name='ifIndex';
+}
+
 $ports_db = dbFetchRows("SELECT * FROM `ports` WHERE `device_id` = ?", array($device['device_id']));
-foreach ($ports_db as $port) { $ports[$port['ifIndex']] = $port; }
+foreach ($ports_db as $port) { $ports[$port[$port_index_name]] = $port; }
 
 // New interface detection
 foreach ($port_stats as $ifIndex => $port)
 {
+  $ifName = $port['ifName'];
+  $port_index = $port[$port_index_name];
   if (is_port_valid($port, $device))
   {
     echo("valid");
-    if (!is_array($ports[$port['ifIndex']]))
+    if (!is_array($ports[$port_index]))
     {
-      $port_id = dbInsert(array('device_id' => $device['device_id'], 'ifIndex' => $ifIndex), 'ports');
-      $ports[$port['ifIndex']] = dbFetchRow("SELECT * FROM `ports` WHERE `port_id` = ?", array($port_id));
+      $port_id = dbInsert(array('device_id' => $device['device_id'], 'ifIndex' => $ifIndex, 'ifName' => $ifName), 'ports');
+      $ports[$port_index] = dbFetchRow("SELECT * FROM `ports` WHERE `port_id` = ?", array($port_id));
       echo("Adding: ".$port['ifName']."(".$ifIndex.")(".$ports[$port['ifIndex']]['port_id'].")");
       #print_r($ports);
-    } elseif ($ports[$ifIndex]['deleted'] == "1") {
-      dbUpdate(array('deleted' => '0'), 'ports', '`port_id` = ?', array($ports[$ifIndex]['port_id']));
-      $ports[$ifIndex]['deleted'] = "0";
+    } elseif ($ports[$port_index]['deleted'] == "1") {
+      dbUpdate(array('deleted' => '0'), 'ports', '`port_id` = ?', array($ports[$port_index]['port_id']));
+      $ports[$port_index]['deleted'] = "0";
+    } elseif ($ports[$port_index]['ifName']  != $ifName) {
+      dbUpdate(array('ifName' => $ifName), 'ports', '`port_id` = ?', array($ports[$port_index]['port_id']));
+      $ports[$port_index]['ifName'] = $ifName;
+    } elseif ($ports[$port_index]['ifIndex'] != $ifIndex) {
+      dbUpdate(array('ifIndex' => $ifIndex), 'ports', '`port_id` = ?', array($ports[$port_index]['port_id']));
+      $ports[$port_index]['ifIndex'] = $ifIndex;
     }
   } else {
-    if ($ports[$port['ifIndex']]['deleted'] != "1")
+    if ($ports[$port_index]['deleted'] != "1")
     {
-      dbUpdate(array('deleted' => '1'), 'ports', '`port_id` = ?', array($ports[$ifIndex]['port_id']));
-      $ports[$ifIndex]['deleted'] = "1";
+      dbUpdate(array('deleted' => '1'), 'ports', '`port_id` = ?', array($ports[$port_index]['port_id']));
+      $ports[$port_index]['deleted'] = "1";
     }
   }
 }

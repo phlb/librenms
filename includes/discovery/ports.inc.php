@@ -17,38 +17,55 @@ if ($debug) { print_r($port_stats); }
 //       -- i can make it a function, so that you don't know what it's doing.
 //       -- $ports_db = adamasMagicFunction($ports_db); ?
 
+if ($device['os_group'] == "unix") {
+  $port_index_name='ifName';
+}
+else {
+  $port_index_name='ifIndex';
+}
+
 foreach (dbFetchRows("SELECT * FROM `ports` WHERE `device_id` = ?", array($device['device_id'])) as $port)
 {
-  $ports_db[$port['ifIndex']] = $port;
-  $ports_db_l[$port['ifIndex']] = $port['port_id'];
+  $ports_db[$port[$port_index_name]] = $port;
+  $ports_db_l[$port[$port_index_name]] = $port['port_id'];
 }
 
 // New interface detection
 foreach ($port_stats as $ifIndex => $port)
 {
+  $ifName = $port['ifName'];
+  $port_index= $port[$port_index_name];
   // Check the port against our filters.
   if (is_port_valid($port, $device))
   {
-    if (!is_array($ports_db[$ifIndex]))
+    if (!is_array($ports_db[$port_index]))
     {
-      $port_id = dbInsert(array('device_id' => $device['device_id'], 'ifIndex' => $ifIndex), 'ports');
-      $ports_db[$ifIndex] = dbFetchRow("SELECT * FROM `ports` WHERE `device_id` = ? AND `ifIndex` = ?", array($device['device_id'], $ifIndex));
-      echo("Adding: ".$port['ifName']."(".$ifIndex.")(".$ports_db[$port['ifIndex']]['port_id'].")");
-    } elseif ($ports_db[$ifIndex]['deleted'] == "1") {
-      dbUpdate(array('deleted' => '0'), 'ports', '`port_id` = ?', array($ports_db[$ifIndex]['port_id']));
-      $ports_db[$ifIndex]['deleted'] = "0";
+      $port_id = dbInsert(array('device_id' => $device['device_id'], 'ifIndex' => $ifIndex, 'ifName' => $ifName), 'ports');
+      $ports_db[$port_index] = dbFetchRow("SELECT * FROM `ports` WHERE `device_id` = ? AND `$port_index_name` = ?", array($device['device_id'], $port_index));
+      echo("Adding: ".$port['ifName']."(".$ifIndex.")(".$ports_db[$port_index]['port_id'].")");
+    } elseif ($ports_db[$port_index]['deleted'] == "1") {
+      dbUpdate(array('deleted' => '0'), 'ports', '`port_id` = ?', array($ports_db[$port_index]['port_id']));
+      $ports_db[$port_index]['deleted'] = "0";
       echo("U");
+    } elseif ($ports_db[$port_index]['ifName']  != $ifName) {
+      dbUpdate(array('ifName' => $ifName), 'ports', '`port_id` = ?', array($ports_db[$port_index]['port_id']));
+      $ports_db[$port_index]['ifName'] = $ifName;
+      echo ("U");
+    } elseif ($ports_db[$port_index]['ifIndex'] != $ifIndex) {
+      dbUpdate(array('ifIndex' => $ifIndex), 'ports', '`port_id` = ?', array($ports_db[$port_index]['port_id']));
+      $ports_db[$port_index]['ifIndex'] = $ifIndex;
+      echo ("U");
     } else {
       echo(".");
     }
     // We've seen it. Remove it from the cache.
-    unset($ports_l[$ifIndex]);
+    unset($ports_l[$port_index]);
   } else {
-    if (is_array($ports_db[$port['ifIndex']])) {
-      if ($ports_db[$port['ifIndex']]['deleted'] != "1")
+    if (is_array($ports_db[$port_index])) {
+      if ($ports_db[$port_index]['deleted'] != "1")
       {
-        dbUpdate(array('deleted' => '1'), 'ports', '`port_id` = ?', array($ports_db[$ifIndex]['port_id']));
-        $ports_db[$ifIndex]['deleted'] = "1";
+        dbUpdate(array('deleted' => '1'), 'ports', '`port_id` = ?', array($ports_db[$port_index]['port_id']));
+        $ports_db[$port_index]['deleted'] = "1";
         echo("-");
       }
     }
@@ -70,9 +87,11 @@ foreach ($ports_l as $ifIndex => $port_id)
 // End interface deletion
 echo("\n");
 
+
+
 // Clear Variables Here
 unset($port_stats);
 unset($ports_db);
 unset($ports_db_db);
-
+unset($port_index_name);
 ?>
