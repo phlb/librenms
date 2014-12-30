@@ -383,7 +383,15 @@ foreach ($ports as $port)
     }
 
     // Update RRDs
-    $rrdfile = $host_rrd . "/port-" . safename($port['ifIndex'] . ".rrd");
+    if ($device['os_group'] = 'unix')
+    {
+      $rrdfile = $host_rrd . "/iface-" . safename($port['port_id'] . ".rrd");
+    }
+    else
+    {
+      $rrdfile = $host_rrd . "/port-" . safename($port['ifIndex'] . ".rrd");
+    }
+
     if (!is_file($rrdfile))
     {
       rrdtool_create($rrdfile," --step 300 \

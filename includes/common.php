@@ -82,6 +82,7 @@ function delete_port($int_id)
   global $config;
 
   $interface = dbFetchRow("SELECT * FROM `ports` AS P, `devices` AS D WHERE P.port_id = ? AND D.device_id = P.device_id", array($int_id));
+  $device    = dbFetchRow("SELECT * FROM `devices` AS D, `ports` AS P WHERE P.port_id = ? AND D.device_id = P.device_id", array($int_id));
 
   $interface_tables = array('adjacencies', 'ipaddr', 'ip6adjacencies', 'ip6addr', 'mac_accounting', 'bill_ports', 'pseudowires', 'ports');
 
@@ -94,7 +95,14 @@ function delete_port($int_id)
   dbDelete('links', "`remote_port_id` =  ?", array($int_id));
   dbDelete('bill_ports', "`port_id` =  ?", array($int_id));
 
-  unlink(trim($config['rrd_dir'])."/".trim($interface['hostname'])."/port-".$interface['ifIndex'].".rrd");
+  if ($config['os'][$device['os']]['group'] == 'unix') {
+    $rrd_file = trim($config['rrd_dir'])."/".trim($interface['hostname'])."/iface-".safename($interface['port_id'].".rrd");
+  }
+  else {
+    $rrd_file = trim($config['rrd_dir'])."/".trim($interface['hostname'])."/port-".safename($interface['ifIndex'].".rrd");
+  }
+
+  unlink($rrd_file);
 }
 
 function sgn($int)
