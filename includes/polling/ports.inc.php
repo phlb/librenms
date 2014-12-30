@@ -383,7 +383,7 @@ foreach ($ports as $port)
     }
 
     // Update RRDs
-    $rrdfile = $host_rrd . "/port-" . safename($port['ifIndex'] . ".rrd");
+    $rrdfile = $host_rrd . "/port-" . safename($port[$port_index_name] . ".rrd");
     if (!is_file($rrdfile))
     {
       rrdtool_create($rrdfile," --step 300 \
